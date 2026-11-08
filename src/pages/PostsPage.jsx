@@ -1,11 +1,40 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getPosts, getUsers } from "../api/posts";
-import { capitalize, initials, truncate } from "../utils/format";
+import { FilterBar } from "../features/posts/components/FilterBar";
+import { PostList } from "../features/posts/components/PostList";
+
+const FILTER_KEYS = ["q", "author", "sort", "view"];
 
 export function PostsPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [retryCount, setRetryCount] = useState(0);
   const [request, setRequest] = useState({ status: "loading", posts: [], users: [] });
+  const query = searchParams.get("q") ?? "";
+  const authorId = searchParams.get("author") ?? "";
+  const requestedSort = searchParams.get("sort");
+  const sort = ["oldest", "title"].includes(requestedSort) ? requestedSort : "newest";
+  const view = searchParams.get("view") === "list" ? "list" : "grid";
+
+  function updateFilter(key, value) {
+    const nextParams = new URLSearchParams(searchParams);
+    const isDefault = !value || (key === "sort" && value === "newest") || (key === "view" && value === "grid");
+
+    if (isDefault) {
+      nextParams.delete(key);
+    } else {
+      nextParams.set(key, value);
+    }
+
+    setSearchParams(nextParams);
+  }
+
+  function resetFilters() {
+    const nextParams = new URLSearchParams(searchParams);
+    FILTER_KEYS.forEach(key => nextParams.delete(key));
+    setSearchParams(nextParams);
+  }
 
   useEffect(() => {
     let isCurrent = true;
@@ -27,6 +56,20 @@ export function PostsPage() {
       isCurrent = false;
     };
   }, [retryCount]);
+
+  const visiblePosts = request.posts
+    .filter(post => {
+      const matchesTitle = post.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+      const matchesAuthor = !authorId || String(post.userId) === authorId;
+      return matchesTitle && matchesAuthor;
+    })
+    .sort((left, right) => {
+      if (sort === "oldest") return left.id - right.id;
+      if (sort === "title") {
+        return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+      }
+      return right.id - left.id;
+    });
 
   return (
     <>
@@ -50,43 +93,34 @@ export function PostsPage() {
         </div>
       )}
 
-      {request.status === "success" && request.posts.length === 0 && (
-        <div className="empty-state">
-          <h2>No posts available</h2>
-          <p>There are no posts to show.</p>
-        </div>
-      )}
-
-      {request.status === "success" && request.posts.length > 0 && (
-        <ul className="post-grid">
-          {request.posts.map(post => {
-            const author = request.users.find(user => user.id === post.userId);
-
-            return (
-              <li key={post.id}>
-                <article className="post-card">
-                  <span className="post-card__id">#{post.id}</span>
-                  <h2 className="post-card__title">
-                    <Link to={`/posts/${post.id}`}>{capitalize(post.title)}</Link>
-                  </h2>
-                  <p className="post-card__excerpt">
-                    {truncate(post.body.replace(/\s+/g, " "), 140)}
-                  </p>
-                  <div className="post-card__footer">
-                    {author ? (
-                      <Link className="byline" to={`/authors/${author.id}`}>
-                        <span className="avatar" aria-hidden="true">{initials(author.name)}</span>
-                        {author.name}
-                      </Link>
-                    ) : (
-                      <span className="muted">Unknown author</span>
-                    )}
-                  </div>
-                </article>
-              </li>
-            );
-          })}
-        </ul>
+      {request.status === "success" && (
+        <>
+          <FilterBar
+            query={query}
+            authorId={authorId}
+            sort={sort}
+            view={view}
+            users={request.users}
+            resultCount={visiblePosts.length}
+            totalCount={request.posts.length}
+            onFilterChange={updateFilter}
+            onReset={resetFilters}
+          />
+          {visiblePosts.length > 0 ? (
+            <PostList
+              posts={visiblePosts}
+              users={request.users}
+              view={view}
+              onPostClick={post => navigate(`/posts/${post.id}`)}
+              onAuthorClick={author => navigate(`/authors/${author.id}`)}
+            />
+          ) : (
+            <div className="empty-state">
+              <h2>{request.posts.length === 0 ? "No posts available" : "No posts match these filters"}</h2>
+              <p>{request.posts.length === 0 ? "There are no posts to show." : "Try changing or resetting your filters."}</p>
+            </div>
+          )}
+        </>
       )}
     </>
   );
