@@ -1,18 +1,29 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Header } from "./components/layout/Header";
 import { Footer } from "./components/layout/Footer";
-import { StylePreview } from "./dev/StylePreview";
+import { PostsPage } from "./pages/PostsPage";
+import { PostDetailPage } from "./pages/PostDetailPage";
+import { AuthorPage } from "./pages/AuthorPage";
+import { BookmarksPage } from "./pages/BookmarksPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
-// Starting point. There are no routes yet.
-// TODO (Milestone 2): wrap the app in <BrowserRouter> and replace <StylePreview />
-// with <Routes> for /posts, /posts/:id, /authors/:id, /bookmarks and *.
 export default function App() {
   return (
-    <div className="app">
-      <Header />
-      <main className="container page">
-        <StylePreview />
-      </main>
-      <Footer />
-    </div>
+    <BrowserRouter>
+      <div className="app">
+        <Header />
+        <main className="container page">
+          <Routes>
+            <Route path="/" element={<Navigate to="/posts" replace />} />
+            <Route path="/posts" element={<PostsPage />} />
+            <Route path="/posts/:id" element={<PostDetailPage />} />
+            <Route path="/authors/:id" element={<AuthorPage />} />
+            <Route path="/bookmarks" element={<BookmarksPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 }

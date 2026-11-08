@@ -4,7 +4,12 @@ import { API_BASE_URL } from "../appConfig";
 
 export { API_BASE_URL };
 
-// TODO (Milestone 1): write getJson(path, { signal })
-//  - fetch `${API_BASE_URL}${path}` with the AbortSignal
-//  - throw an Error when res.ok is false (JSONPlaceholder returns 404 for unknown ids)
-//  - return the parsed JSON
+export async function getJson(path, { signal } = {}) {
+	const response = await fetch(`${API_BASE_URL}${path}`, { signal });
+
+	if (!response.ok) {
+		throw new Error(`Request failed with status ${response.status}`);
+	}
+
+	return response.json();
+}
